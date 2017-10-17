@@ -99,6 +99,26 @@ module Capistrano
         )
       end
 
+      it "orders enhancements before after blocks when defined out of order" do
+        Rake.application.in_namespace("namespace") do
+          Rake::Task.define_task("task") do |t|
+            order.push(t.name)
+          end
+          task_enhancements.after("task", "after_task", :order) do |t|
+            order.push(t.name)
+          end
+          Rake::Task.define_task("task") do |t|
+            order.push("#{t.name}-enhancement")
+          end
+        end
+
+        Rake::Task["namespace:task"].invoke
+
+        expect(order).to eq(
+          ["namespace:task", "namespace:task-enhancement", "namespace:after_task"]
+        )
+      end
+
       it "raises a sensible error if the task isn't found" do
         task_enhancements.after("task", "non_existent_task")
         expect { Rake::Task["task"].invoke order }.to raise_error(ArgumentError, 'Task "non_existent_task" not found')
